@@ -1,0 +1,137 @@
+---
+title: "LSH Ent 45 Day Renewals"
+author: "Ryan Johnson"
+date: "5/24/2021"
+output: html_document
+---
+
+# Connect to SF
+
+```{r warning=F, message=F}
+library(tidyverse)
+library(odbc)
+library(DBI)
+library(dbplyr)
+library(lubridate)
+library(glue)
+library(httr)
+library(scales)
+
+# Setup connections
+con <- DBI::dbConnect(odbc::odbc(),
+                      database = "marketing", 
+                      Driver = "Redshift",
+                      host = "redhouse.cyii7eabibhu.us-east-1.redshift.amazonaws.com", 
+                      port = 5439, 
+                      UID = Sys.getenv("WAREHOUSE_USER"), 
+                      PWD = Sys.getenv("WAREHOUSE_PASSWORD"))
+```
+
+
+# Create LSH-Ent Table
+
+```{r}
+# Get Account Info for LSH Ent pod
+account_info <- tbl(con, in_schema("salesforce", "account")) %>%
+  filter(pod_team_c == "Ent LSH") %>% 
+  filter(is_deleted == "0") %>% 
+  filter(type == "Customer") %>% 
+  select(acct_id = id, acct_name = name,
+         acct_cs_owner_id = customer_success_team_member_c,
+         acct_owner_id = owner_id, acct_acv = annual_contract_value_c) %>%
+  collect()
+
+# Get Open Opps
+open_opps <- tbl(con, in_schema("salesforce", "opportunity")) %>% 
+  filter(is_deleted == "0") %>%
+  filter(type == "Renewal") %>% 
+  filter(!stage_name %in% c("Closed Won", "Closed Lost", "Opportunity Disqualified")) %>% 
+   select(opp_id = id, acct_id = account_id, opp_name = name, opp_stage_name = stage_name, opp_owner_id = owner_id,
+          opp_amount = amount, opp_close_date = close_date, opp_license_start_date = license_start_date_c) %>%
+  collect() %>% 
+  # Get license start date - 1 day
+  mutate(opp_license_start_date = lubridate::ymd(opp_license_start_date) - 1) %>%
+  # Days to renewal
+  mutate(days_to_renewal = as.double(opp_license_start_date - today())) %>% 
+  filter(acct_id %in% account_info$acct_id)
+
+# Get RStudio IDs and name
+rstudio_contacts <- tbl(con, in_schema("salesforce", "user")) %>%
+  select(first_name, last_name, id) %>% 
+  collect() %>% 
+  unite("rstudio_contact_name", c("first_name", "last_name"), sep = " ") %>% 
+  rename(rstudio_contact_id = id)
+```
+
+
+# License expires in 45 days
+```{r}
+Forty_Five_opps <- open_opps %>% 
+  filter(days_to_renewal == 45) %>% 
+  # Add in Account name
+  left_join(select(account_info, acct_id, acct_name, acct_owner_id), by = c("acct_id")) %>% 
+  
+  # Add in owner
+  left_join(rstudio_contacts, by = c("opp_owner_id" = "rstudio_contact_id")) %>%
+  rename(opp_owner = rstudio_contact_name) %>% 
+  left_join(rstudio_contacts, by = c("acct_owner_id" = "rstudio_contact_id")) %>% 
+  rename(acct_owner = rstudio_contact_name)
+```
+
+
+# Post 45 day renewals to slack
+
+```{r}
+if(nrow(Forty_Five_opps) > 0){
+  for(i in 1:nrow(Forty_Five_opps)){
+    
+  # Extract variables
+  acct_name <- Forty_Five_opps[i,]$acct_name
+  acct_owner <- Forty_Five_opps[i,]$acct_owner
+  opp_name <- Forty_Five_opps[i,]$opp_name
+  opp_owner <- Forty_Five_opps[i,]$opp_owner
+  opp_amount <- dollar(Forty_Five_opps[i,]$opp_amount)
+  opp_id <- Forty_Five_opps[i,]$opp_id
+  sf_link <- paste0("https://rstudio.lightning.force.com/lightning/r/", opp_id, "/view")
+
+
+  # Generate message
+  good_post <- glue(
+  '{
+	"blocks": [
+		{
+			"type": "section",
+			"text": {
+				"type": "mrkdwn",
+				"text": "*-~-acct_name-~-* has a renewal coming up in :four::five: days!"
+			}
+		},
+		{
+			"type": "context",
+			"elements": [
+				{
+					"type": "mrkdwn",
+					"text": "<-~-sf_link-~-|-~-opp_name-~->"
+				}
+			]
+		},
+		{
+			"type": "context",
+			"elements": [
+				{
+					"type": "mrkdwn",
+					"text": ":bust_in_silhouette: *Account Owner:* -~-acct_owner-~-\n:bust_in_silhouette: *Opp Owner:* -~-opp_owner-~-\n:dollar: *Amount:* -~-opp_amount-~-"
+				}
+			]
+		}
+	]
+}', .open = "-~-", .close = "-~-")
+  
+    # Send post to Slack
+    POST(url = Sys.getenv("LSH_WEBHOOK"), encode = "form",
+     add_headers(`Content-Type` = "application/json"), 
+     body = good_post)
+  }
+}
+```
+
