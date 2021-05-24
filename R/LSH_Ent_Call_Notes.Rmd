@@ -58,6 +58,7 @@ tasks <- dplyr::tbl(con, in_schema("salesforce", "task")) %>%
                          "0054W00000D8btLQAR", "0054W00000Ce4pKQAR", "0054W00000CeHQbQAN")) %>%
   select(
     subject,
+    what_id,
     activity_date,
     status,
     description,
@@ -96,6 +97,9 @@ if(nrow(tasks) > 0){
   # Extract variables
   acct_name <- tasks[i,]$acct_name
   rep_name <- tasks[i,]$rstudio_contact_name
+  task_subject <- tasks[i,]$subject
+  sf_id <- tasks[i,]$what_id
+  sf_link <- paste0("https://rstudio.lightning.force.com/lightning/r/", sf_id, "/view")
   # Format call notes
   call_notes <- markdown_text(tasks[i,]$description)
 
@@ -107,7 +111,7 @@ if(nrow(tasks) > 0){
 			"type": "section",
 			"text": {
 				"type": "mrkdwn",
-				"text": ":spiral_note_pad: *-~-rep_name-~-* had a meeting with *-~-acct_name-~-*"
+				"text": ":spiral_note_pad: *-~-rep_name-~-* had a meeting with *<-~-sf_link-~-|-~-acct_name-~->*: -~-task_subject-~-"
 			}
 		},
 		{
