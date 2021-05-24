@@ -1,0 +1,135 @@
+---
+title: "LSH Ent Call Notes"
+author: "Ryan Johnson"
+date: "5/20/2021"
+output: html_document
+---
+
+# Connect to SF
+
+```{r warning=F, message=F}
+library(tidyverse)
+library(odbc)
+library(DBI)
+library(dbplyr)
+library(lubridate)
+library(glue)
+library(httr)
+library(commonmark)
+
+# Setup connections
+con <- DBI::dbConnect(odbc::odbc(),
+                      database = "marketing", 
+                      Driver = "Redshift",
+                      host = "redhouse.cyii7eabibhu.us-east-1.redshift.amazonaws.com", 
+                      port = 5439, 
+                      UID = Sys.getenv("WAREHOUSE_USER"), 
+                      PWD = Sys.getenv("WAREHOUSE_PASSWORD"))
+```
+
+
+# Create LSH-Ent Table
+
+```{r}
+# Get Account names
+account_info <- tbl(con, in_schema("salesforce", "account")) %>%
+  filter(pod_team_c == "Ent LSH") %>% 
+  filter(is_deleted == "0") %>% 
+  filter(type == "Customer") %>% 
+  select(acct_id = id, acct_name = name,
+         acct_cs_owner_id = customer_success_team_member_c,
+         acct_owner_id = owner_id, acct_acv = annual_contract_value_c) %>%
+  collect()
+
+# Get RStudio IDs and name
+rstudio_contacts <- tbl(con, in_schema("salesforce", "user")) %>%
+  select(first_name, last_name, id) %>% 
+  collect() %>% 
+  unite("rstudio_contact_name", c("first_name", "last_name"), sep = " ") %>% 
+  rename(rstudio_contact_id = id)
+```
+
+# Get Call Notes
+
+```{r}
+tasks <- dplyr::tbl(con, in_schema("salesforce", "task")) %>%
+  filter(account_id %in% !!account_info$acct_id) %>%
+  filter(owner_id %in% c("0050L000009iXh7QAE", "0050L000008uIbGQAU", "0050L000009V2eWQAS",
+                         "0054W00000D8btLQAR", "0054W00000Ce4pKQAR", "0054W00000CeHQbQAN")) %>%
+  select(
+    subject,
+    activity_date,
+    status,
+    description,
+    task_subtype,
+    type,
+    account_id,
+    who_id,
+    owner_id,
+    created_date,
+    created_by_id
+  ) %>%
+  collect() %>%
+  mutate(label = case_when(
+    (task_subtype == 'Call' & type == 'Call') ~ 'Call',!is.na(task_subtype) ~ 'Email'
+  )) %>% 
+  # Filter for just calls
+  filter(label == "Call") %>%
+  
+  # Filter for calls in last # hours
+  mutate(created_date = as_datetime(created_date)) %>% 
+  filter(created_date > now() - hours(1)) %>% 
+  
+  # Add in Account name
+  left_join(select(account_info, acct_id, acct_name), by = c("account_id" = "acct_id")) %>% 
+  
+  # Add in owner
+  left_join(rstudio_contacts, by = c("created_by_id" = "rstudio_contact_id"))
+```
+
+# Post meeting notes to slack
+
+```{r}
+if(nrow(tasks) > 0){
+  for(i in 1:nrow(tasks)){
+    
+  # Extract variables
+  acct_name <- tasks[i,]$acct_name
+  rep_name <- tasks[i,]$rstudio_contact_name
+  # Format call notes
+  call_notes <- markdown_text(tasks[i,]$description)
+
+  # Generate message
+  good_post <- glue(
+  '{
+	"blocks": [
+  {
+			"type": "section",
+			"text": {
+				"type": "mrkdwn",
+				"text": ":spiral_note_pad: *-~-rep_name-~-* had a meeting with *-~-acct_name-~-*"
+			}
+		},
+		{
+			"type": "context",
+			"elements": [
+				{
+					"type": "plain_text",
+					"text": "-~-call_notes-~-"
+				}
+			]
+		},
+    {
+			"type": "divider"
+		}
+	]
+}', .open = "-~-", .close = "-~-")
+  
+    # Send post to Slack
+    POST(url = Sys.getenv("LSH_WEBHOOK"), encode = "form",
+     add_headers(`Content-Type` = "application/json"), 
+     body = good_post)
+  }
+}
+```
+
