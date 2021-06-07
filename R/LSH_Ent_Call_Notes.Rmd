@@ -16,6 +16,7 @@ library(lubridate)
 library(glue)
 library(httr)
 library(commonmark)
+library(pins)
 
 # Setup connections
 con <- DBI::dbConnect(odbc::odbc(),
@@ -25,6 +26,9 @@ con <- DBI::dbConnect(odbc::odbc(),
                       port = 5439, 
                       UID = Sys.getenv("WAREHOUSE_USER"), 
                       PWD = Sys.getenv("WAREHOUSE_PASSWORD"))
+
+pins::board_register_rsconnect(server = "https://connect.rstudioservices.com/",
+                               key = Sys.getenv("CONNECT_API_KEY"))
 ```
 
 
@@ -57,6 +61,7 @@ tasks <- dplyr::tbl(con, in_schema("salesforce", "task")) %>%
   filter(owner_id %in% c("0050L000009iXh7QAE", "0050L000008uIbGQAU", "0050L000009V2eWQAS",
                          "0054W00000D8btLQAR", "0054W00000Ce4pKQAR", "0054W00000CeHQbQAN")) %>%
   select(
+    id,
     subject,
     what_id,
     activity_date,
@@ -77,9 +82,10 @@ tasks <- dplyr::tbl(con, in_schema("salesforce", "task")) %>%
   # Filter for just calls
   filter(label == "Call") %>%
   
-  # Filter for calls in last # hours
+  # Filter for calls this week
   mutate(created_date = as_datetime(created_date)) %>% 
-  filter(created_date > now() - hours(1)) %>% 
+  filter(year(created_date) == year(now())) %>% 
+  filter(isoweek(created_date) == isoweek(now())) %>% 
   
   # Add in Account name
   left_join(select(account_info, acct_id, acct_name), by = c("account_id" = "acct_id")) %>% 
@@ -88,20 +94,42 @@ tasks <- dplyr::tbl(con, in_schema("salesforce", "task")) %>%
   left_join(rstudio_contacts, by = c("created_by_id" = "rstudio_contact_id"))
 ```
 
+# Get previous week's call notes (if exists)
+```{r}
+# If pin does not exist
+if(nrow(pins::pin_find("LSH_Ent_call_notes", "rsconnect")) == 0){
+  pins::pin(select(tasks, id), 
+          name = "LSH_Ent_call_notes",
+          board = "rsconnect")
+}
+
+# If pin exists
+weeks_calls <- pins::pin_get("LSH_Ent_call_notes",
+          board = "rsconnect")
+```
+
+# Extract new calls
+```{r}
+# Extract new wins
+new_calls_id <- setdiff(tasks$id, weeks_calls$id)
+new_calls <- tasks %>% 
+  filter(id %in% new_calls_id)
+```
+
 # Post meeting notes to slack
 
 ```{r}
-if(nrow(tasks) > 0){
-  for(i in 1:nrow(tasks)){
+if(nrow(new_calls) > 0){
+  for(i in 1:nrow(new_calls)){
     
   # Extract variables
-  acct_name <- tasks[i,]$acct_name
-  rep_name <- tasks[i,]$rstudio_contact_name
-  task_subject <- tasks[i,]$subject
-  sf_id <- tasks[i,]$what_id
-  sf_link <- paste0("https://rstudio.lightning.force.com/lightning/r/", sf_id, "/view")
+  acct_name <- new_calls[i,]$acct_name
+  rep_name <- new_calls[i,]$rstudio_contact_name
+  task_subject <- new_calls[i,]$subject
+  sf_id <- new_calls[i,]$id
+  sf_link <- paste0("https://rstudio.lightning.force.com/lightning/r/Task/", sf_id, "/view")
   # Format call notes
-  call_notes <- markdown_text(tasks[i,]$description)
+  call_notes <- markdown_text(new_calls[i,]$description)
 
   # Generate message
   good_post <- glue(
@@ -137,3 +165,9 @@ if(nrow(tasks) > 0){
 }
 ```
 
+# Replace calls pin with updated list
+```{r}
+pins::pin(select(tasks, id), 
+          name = "LSH_Ent_call_notes",
+          board = "rsconnect")
+```
