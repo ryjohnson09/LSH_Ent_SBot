@@ -37,9 +37,11 @@ pins::board_register_rsconnect(server = "https://connect.rstudioservices.com/",
 ```{r}
 # Get Account names
 account_info <- tbl(con, in_schema("salesforce", "account")) %>%
-  filter(pod_team_c == "Ent LSH") %>% 
+  # Filter for all accounts that Jason and Lauren own
+  filter(owner_id %in% c("0050L000008uIbGQAU", "0050L000009V2eWQAS")) %>% 
+  #filter(pod_team_c == "Ent LSH") %>% 
   filter(is_deleted == "0") %>% 
-  filter(type == "Customer") %>% 
+  #filter(type %in% c("Customer", "Prospect")) %>%
   select(acct_id = id, acct_name = name,
          acct_cs_owner_id = customer_success_team_member_c,
          acct_owner_id = owner_id, acct_acv = annual_contract_value_c) %>%
