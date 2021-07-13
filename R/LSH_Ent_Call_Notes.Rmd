@@ -80,7 +80,7 @@ tasks <- dplyr::tbl(con, in_schema("salesforce", "task")) %>%
   collect() %>%
   mutate(label = case_when(
     (task_subtype == 'Call' & type == 'Call') ~ 'Call',!is.na(task_subtype) ~ 'Email'
-  )) %>% 
+  )) %>%
   # Filter for just calls
   filter(label == "Call") %>%
   
@@ -116,6 +116,7 @@ weeks_calls <- pins::pin_get("LSH_Ent_call_notes",
 new_calls_id <- setdiff(tasks$id, weeks_calls$id)
 new_calls <- tasks %>% 
   filter(id %in% new_calls_id)
+  # filter(id == "00T4W00005oQlkLUAS")
 ```
 
 # Post meeting notes to slack
@@ -132,6 +133,8 @@ if(nrow(new_calls) > 0){
   sf_link <- paste0("https://rstudio.lightning.force.com/lightning/r/Task/", sf_id, "/view")
   # Format call notes
   call_notes <- markdown_text(new_calls[i,]$description)
+  call_notes1 <- gsub('\r', '', call_notes)
+  call_notes2 <- gsub('[\"]', '', call_notes1)
 
   # Generate message
   good_post <- glue(
@@ -149,7 +152,7 @@ if(nrow(new_calls) > 0){
 			"elements": [
 				{
 					"type": "plain_text",
-					"text": "-~-call_notes-~-"
+					"text": "-~-call_notes2-~-"
 				}
 			]
 		},
