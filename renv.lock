@@ -58,6 +58,13 @@
       "Repository": "RSPM",
       "Hash": "dbb5e436998a7eba5a9d682060533338"
     },
+    "arrow": {
+      "Package": "arrow",
+      "Version": "6.0.1",
+      "Source": "Repository",
+      "Repository": "RSPM",
+      "Hash": "da21509f51b9ad1386ca293e1042abf5"
+    },
     "askpass": {
       "Package": "askpass",
       "Version": "1.1",
@@ -149,6 +156,13 @@
       "Repository": "RSPM",
       "Hash": "6cab523af06ac301e7a40c5529d45882"
     },
+    "commonmark": {
+      "Package": "commonmark",
+      "Version": "1.7",
+      "Source": "Repository",
+      "Repository": "RSPM",
+      "Hash": "0f22be39ec1d141fd03683c06f3a6e67"
+    },
     "cpp11": {
       "Package": "cpp11",
       "Version": "0.2.7",
@@ -232,6 +246,13 @@
       "Source": "Repository",
       "Repository": "RSPM",
       "Hash": "c98eb5133d9cb9e1622b8691487f11bb"
+    },
+    "filelock": {
+      "Package": "filelock",
+      "Version": "1.0.2",
+      "Source": "Repository",
+      "Repository": "RSPM",
+      "Hash": "38ec653c2613bed60052ba3787bd8a2c"
     },
     "forcats": {
       "Package": "forcats",
@@ -450,12 +471,26 @@
       "Repository": "RSPM",
       "Hash": "f4dbc5a47fd93d3415249884d31d6791"
     },
+    "packrat": {
+      "Package": "packrat",
+      "Version": "0.6.0",
+      "Source": "Repository",
+      "Repository": "RSPM",
+      "Hash": "0d6cc4c357e7602bb3eee299f4cfc2a5"
+    },
     "pillar": {
       "Package": "pillar",
       "Version": "1.6.1",
       "Source": "Repository",
       "Repository": "RSPM",
       "Hash": "8672ae02bd20f6479bce2d06c7ff1401"
+    },
+    "pins": {
+      "Package": "pins",
+      "Version": "1.0.1",
+      "Source": "Repository",
+      "Repository": "RSPM",
+      "Hash": "895dab97fa344ed6946bbeb4effb3810"
     },
     "pkgconfig": {
       "Package": "pkgconfig",
@@ -561,6 +596,13 @@
       "Source": "Repository",
       "Repository": "RSPM",
       "Hash": "f518ba47713f92d0d603eec7c6888faf"
+    },
+    "rsconnect": {
+      "Package": "rsconnect",
+      "Version": "0.8.17",
+      "Source": "Repository",
+      "Repository": "RSPM",
+      "Hash": "2613a231f28dc5ea0d0d80d6268fced3"
     },
     "rstudioapi": {
       "Package": "rstudioapi",
@@ -674,6 +716,13 @@
       "Repository": "RSPM",
       "Hash": "55e157e2aa88161bdb0754218470d204"
     },
+    "whisker": {
+      "Package": "whisker",
+      "Version": "0.4",
+      "Source": "Repository",
+      "Repository": "RSPM",
+      "Hash": "ca970b96d894e90397ed20637a0c1bbe"
+    },
     "withr": {
       "Package": "withr",
       "Version": "2.4.2",
@@ -701,6 +750,13 @@
       "Source": "Repository",
       "Repository": "RSPM",
       "Hash": "2826c5d9efb0a88f657c7a679c7106db"
+    },
+    "zip": {
+      "Package": "zip",
+      "Version": "2.1.1",
+      "Source": "Repository",
+      "Repository": "RSPM",
+      "Hash": "3bc8405c637d988801ec5ea88372d0c2"
     }
   }
 }

@@ -1,7 +1,7 @@
 ---
 title: "LSH Ent 45 Day Renewals"
 author: "Ryan Johnson"
-date: "5/24/2021"
+date: "12/20/2021"
 output: html_document
 ---
 
@@ -16,15 +16,12 @@ library(lubridate)
 library(glue)
 library(httr)
 library(scales)
+library(warehouse)
+```
 
-# Setup connections
-con <- DBI::dbConnect(odbc::odbc(),
-                      database = "marketing", 
-                      Driver = "Redshift",
-                      host = "redhouse.cyii7eabibhu.us-east-1.redshift.amazonaws.com", 
-                      port = 5439, 
-                      UID = Sys.getenv("WAREHOUSE_USER"), 
-                      PWD = Sys.getenv("WAREHOUSE_PASSWORD"))
+# Set up Connections
+```{r}
+con <- lakehouse()
 ```
 
 
@@ -32,7 +29,7 @@ con <- DBI::dbConnect(odbc::odbc(),
 
 ```{r}
 # Get Account Info for LSH Ent pod
-account_info <- tbl(con, in_schema("salesforce", "account")) %>%
+account_info <- tbl(con, in_schema("salesforce_v1", "account")) %>%
   filter(pod_team_c == "Ent LSH") %>% 
   filter(is_deleted == "0") %>% 
   filter(type == "Customer") %>% 
@@ -42,7 +39,7 @@ account_info <- tbl(con, in_schema("salesforce", "account")) %>%
   collect()
 
 # Get Open Opps
-open_opps <- tbl(con, in_schema("salesforce", "opportunity")) %>% 
+open_opps <- tbl(con, in_schema("salesforce_v1", "opportunity")) %>% 
   filter(is_deleted == "0") %>%
   filter(type == "Renewal") %>% 
   filter(!stage_name %in% c("Closed Won", "Closed Lost", "Opportunity Disqualified")) %>% 
@@ -56,7 +53,7 @@ open_opps <- tbl(con, in_schema("salesforce", "opportunity")) %>%
   filter(acct_id %in% account_info$acct_id)
 
 # Get RStudio IDs and name
-rstudio_contacts <- tbl(con, in_schema("salesforce", "user")) %>%
+rstudio_contacts <- tbl(con, in_schema("salesforce_v1", "user")) %>%
   select(first_name, last_name, id) %>% 
   collect() %>% 
   unite("rstudio_contact_name", c("first_name", "last_name"), sep = " ") %>% 

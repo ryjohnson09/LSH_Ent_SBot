@@ -1,7 +1,7 @@
 ---
 title: "LSH Ent Call Notes"
 author: "Ryan Johnson"
-date: "5/20/2021"
+date: "12/20/2021"
 output: html_document
 ---
 
@@ -17,18 +17,16 @@ library(glue)
 library(httr)
 library(commonmark)
 library(pins)
+library(warehouse)
+```
 
+```{r}
 # Setup connections
-con <- DBI::dbConnect(odbc::odbc(),
-                      database = "marketing", 
-                      Driver = "Redshift",
-                      host = "redhouse.cyii7eabibhu.us-east-1.redshift.amazonaws.com", 
-                      port = 5439, 
-                      UID = Sys.getenv("WAREHOUSE_USER"), 
-                      PWD = Sys.getenv("WAREHOUSE_PASSWORD"))
+# RStudio Data Warehouse
+con <- lakehouse()
 
-pins::board_register_rsconnect(server = "https://connect.rstudioservices.com/",
-                               key = Sys.getenv("CONNECT_API_KEY"))
+# Register Pin Board
+board <- board_rsconnect(server = Sys.getenv("CONNECT_SERVER"))
 ```
 
 
@@ -36,7 +34,7 @@ pins::board_register_rsconnect(server = "https://connect.rstudioservices.com/",
 
 ```{r}
 # Get Account names
-account_info <- tbl(con, in_schema("salesforce", "account")) %>%
+account_info <- tbl(con, in_schema("salesforce_v1", "account")) %>%
   # Filter for all accounts that Jason and Lauren own
   filter(owner_id %in% c("0050L000008uIbGQAU", "0050L000009V2eWQAS")) %>% 
   #filter(pod_team_c == "Ent LSH") %>% 
@@ -48,7 +46,7 @@ account_info <- tbl(con, in_schema("salesforce", "account")) %>%
   collect()
 
 # Get RStudio IDs and name
-rstudio_contacts <- tbl(con, in_schema("salesforce", "user")) %>%
+rstudio_contacts <- tbl(con, in_schema("salesforce_v1", "user")) %>%
   select(first_name, last_name, id) %>% 
   collect() %>% 
   unite("rstudio_contact_name", c("first_name", "last_name"), sep = " ") %>% 
@@ -58,7 +56,7 @@ rstudio_contacts <- tbl(con, in_schema("salesforce", "user")) %>%
 # Get Call Notes
 
 ```{r}
-tasks <- dplyr::tbl(con, in_schema("salesforce", "task")) %>%
+tasks <- dplyr::tbl(con, in_schema("salesforce_v1", "task")) %>%
   filter(account_id %in% !!account_info$acct_id) %>%
   filter(owner_id %in% c("0050L000009iXh7QAE", "0050L000008uIbGQAU", "0050L000009V2eWQAS",
                          "0054W00000D8btLQAR", "0054W00000Ce4pKQAR", "0054W00000CeHQbQAN")) %>%
@@ -99,15 +97,13 @@ tasks <- dplyr::tbl(con, in_schema("salesforce", "task")) %>%
 # Get previous week's call notes (if exists)
 ```{r}
 # If pin does not exist
-if(nrow(pins::pin_find("LSH_Ent_call_notes", "rsconnect")) == 0){
-  pins::pin(select(tasks, id), 
-          name = "LSH_Ent_call_notes",
-          board = "rsconnect")
+if(!pins::pin_exists(board, "ryan/LSH_Ent_call_notes")){
+  pins::pin_write(board, select(tasks, id), 
+          name = "LSH_Ent_call_notes")
 }
 
 # If pin exists
-weeks_calls <- pins::pin_get("LSH_Ent_call_notes",
-          board = "rsconnect")
+weeks_calls <- pins::pin_read(board, "ryan/LSH_Ent_call_notes")
 ```
 
 # Extract new calls
@@ -172,7 +168,6 @@ if(nrow(new_calls) > 0){
 
 # Replace calls pin with updated list
 ```{r}
-pins::pin(select(tasks, id), 
-          name = "LSH_Ent_call_notes",
-          board = "rsconnect")
+pins::pin_write(board, select(tasks, id), 
+          name = "ryan/LSH_Ent_call_notes")
 ```
