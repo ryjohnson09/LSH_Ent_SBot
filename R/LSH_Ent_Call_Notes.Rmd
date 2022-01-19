@@ -36,7 +36,7 @@ board <- board_rsconnect(server = Sys.getenv("CONNECT_SERVER"))
 # Get Account names
 account_info <- tbl(con, in_schema("salesforce_v1", "account")) %>%
   # Filter for all accounts that Jason and Lauren own
-  filter(owner_id %in% c("0050L000008uIbGQAU", "0050L000009V2eWQAS")) %>% 
+  #filter(owner_id %in% c("0050L000008uIbGQAU", "0050L000009V2eWQAS")) %>% 
   #filter(pod_team_c == "Ent LSH") %>% 
   filter(is_deleted == "0") %>% 
   #filter(type %in% c("Customer", "Prospect")) %>%
@@ -59,7 +59,7 @@ rstudio_contacts <- tbl(con, in_schema("salesforce_v1", "user")) %>%
 tasks <- dplyr::tbl(con, in_schema("salesforce_v1", "task")) %>%
   filter(account_id %in% !!account_info$acct_id) %>%
   filter(owner_id %in% c("0050L000009iXh7QAE", "0050L000008uIbGQAU", "0050L000009V2eWQAS",
-                         "0054W00000D8btLQAR", "0054W00000Ce4pKQAR", "0054W00000CeHQbQAN")) %>%
+                         "0054W00000Ce4pKQAR", "0054W00000CeHQbQAN")) %>%
   select(
     id,
     subject,
