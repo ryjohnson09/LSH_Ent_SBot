@@ -1,7 +1,7 @@
 ---
-title: "LSH Ent 45 Day Renewals"
+title: "LSH Ent 90 Day Renewals"
 author: "Ryan Johnson"
-date: "12/20/2021"
+date: "1/28/2022"
 output: html_document
 ---
 
@@ -61,10 +61,10 @@ rstudio_contacts <- tbl(con, in_schema("salesforce_v1", "user")) %>%
 ```
 
 
-# License expires in 45 days
+# License expires in N days
 ```{r}
 Forty_Five_opps <- open_opps %>% 
-  filter(days_to_renewal == 45) %>% 
+  filter(days_to_renewal == 90) %>% 
   # Add in Account name
   left_join(select(account_info, acct_id, acct_name, acct_owner_id), by = c("acct_id")) %>% 
   
@@ -76,7 +76,7 @@ Forty_Five_opps <- open_opps %>%
 ```
 
 
-# Post 45 day renewals to slack
+# Post renewals to slack
 
 ```{r}
 if(nrow(Forty_Five_opps) > 0){
