@@ -100,7 +100,7 @@ if(nrow(Forty_Five_opps) > 0){
 			"type": "section",
 			"text": {
 				"type": "mrkdwn",
-				"text": "*-~-acct_name-~-* has a renewal coming up in :four::five: days!"
+				"text": "*-~-acct_name-~-* has a renewal coming up in :nine::zero: days!"
 			}
 		},
 		{
