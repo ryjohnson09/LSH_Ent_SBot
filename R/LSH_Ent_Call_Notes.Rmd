@@ -58,8 +58,10 @@ rstudio_contacts <- tbl(con, in_schema("salesforce_v1", "user")) %>%
 ```{r}
 tasks <- dplyr::tbl(con, in_schema("salesforce_v1", "task")) %>%
   filter(account_id %in% !!account_info$acct_id) %>%
-  filter(owner_id %in% c("0050L000009iXh7QAE", "0050L000008uIbGQAU", "0050L000009V2eWQAS",
-                         "0054W00000Ce4pKQAR", "0054W00000CeHQbQAN")) %>%
+  filter(owner_id %in% c("0050L000009iXh7QAE", # Ryan J
+                         "0050L000008uIbGQAU", # Lauren C
+                         "0050L000009V2eWQAS"  # Jason M
+                         )) %>%
   select(
     id,
     subject,
